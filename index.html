@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portugal Presidential Election - Polymarket Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #0a0a0a;
+            --text-color: #ffffff;
+            --text-muted: #666666;
+            --accent: #111111;
+            --green: #00ff7f;
+            --red: #ff4757;
+            --border: #1a1a1a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 1rem;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .status.loading {
+            color: var(--yellow);
+        }
+
+        .status.error {
+            color: var(--red);
+        }
+
+        .refresh-btn {
+            background: var(--accent);
+            color: var(--text-color);
+            border: none;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            min-width: 100px;
+        }
+
+        .refresh-btn:hover {
+            background: #222222;
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.98);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .market-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .market-header {
+            background: var(--accent);
+            padding: 0.875rem 1rem;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .market-header a {
+            color: var(--text-color);
+            text-decoration: none;
+        }
+
+        .market-header a:hover {
+            text-decoration: underline;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 0.5rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            white-space: nowrap;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.625rem 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .candidate-name {
+            font-weight: 500;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .price {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            text-align: right;
+        }
+
+        .price-na {
+            color: var(--text-muted);
+        }
+
+        /* Highlight when My Value differs significantly from Bid/Ask */
+        .diff-positive {
+            color: var(--green);
+        }
+
+        .diff-negative {
+            color: var(--red);
+        }
+
+        /* Mobile styles */
+        @media (max-width: 600px) {
+            body {
+                padding: 0.5rem;
+            }
+
+            h1 {
+                font-size: 1.25rem;
+            }
+
+            .header {
+                margin-bottom: 1rem;
+            }
+
+            th, td {
+                padding: 0.5rem 0.375rem;
+                font-size: 0.8rem;
+            }
+
+            .candidate-name {
+                max-width: 100px;
+            }
+
+            .market-header {
+                padding: 0.75rem;
+                font-size: 0.9rem;
+            }
+
+        }
+
+        @media (max-width: 400px) {
+            th, td {
+                padding: 0.375rem 0.25rem;
+                font-size: 0.75rem;
+            }
+
+            .candidate-name {
+                max-width: 80px;
+            }
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .legend-color.green {
+            background: var(--green);
+        }
+
+        .legend-color.red {
+            background: var(--red);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Portugal Presidential Election</h1>
+        <div class="controls">
+            <span id="status" class="status">Loading...</span>
+            <button id="refreshBtn" class="refresh-btn" onclick="refreshData()">Refresh</button>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color green"></div>
+            <span>My Value &gt; Ask (buy opportunity)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color red"></div>
+            <span>My Value &lt; Bid (sell opportunity)</span>
+        </div>
+    </div>
+
+    <div id="markets"></div>
+
+    <script>
+        const EVENTS = [
+            {
+                slug: "portugal-presidential-election",
+                name: "Overall Winner",
+                candidates: {
+                    "André Ventura":          { myValue: 0.048, startMid: 0.062 },
+                    "António José Seguro":    { myValue: 0.657, startMid: 0.764 },
+                    "João Cotrim Figueiredo": { myValue: 0.20,  startMid: 0.158 },
+                    "Luís Marques Mendes":    { myValue: 0.08,  startMid: 0.014 },
+                    "Henrique Gouveia e Melo":{ myValue: 0.013, startMid: 0.006 }
+                }
+            },
+            {
+                slug: "portugal-presidential-election-1st-round-winner",
+                name: "1st Round Winner",
+                candidates: {
+                    "André Ventura":          { myValue: 0.51,  startMid: 0.385 },
+                    "António José Seguro":    { myValue: 0.394, startMid: 0.559 },
+                    "João Cotrim Figueiredo": { myValue: 0.076, startMid: 0.058 },
+                    "Luís Marques Mendes":    { myValue: 0.015, startMid: 0.003 },
+                    "Henrique Gouveia e Melo":{ myValue: 0.003, startMid: 0.003 }
+                }
+            },
+            {
+                slug: "portugal-presidential-election-1st-round-2nd-place",
+                name: "1st Round 2nd Place",
+                candidates: {
+                    "André Ventura":          { myValue: 0.246, startMid: 0.40 },
+                    "António José Seguro":    { myValue: 0.381, startMid: 0.298 },
+                    "João Cotrim Figueiredo": { myValue: 0.292, startMid: 0.228 },
+                    "Luís Marques Mendes":    { myValue: 0.06,  startMid: 0.0125 },
+                    "Henrique Gouveia e Melo":{ myValue: 0.017, startMid: 0.01 }
+                }
+            },
+            {
+                slug: "portugal-presidential-election-1st-round-3rd-place-118",
+                name: "1st Round 3rd Place",
+                candidates: {
+                    "André Ventura":          { myValue: 0.12,  startMid: 0.195 },
+                    "António José Seguro":    { myValue: 0.177, startMid: 0.050 },
+                    "João Cotrim Figueiredo": { myValue: 0.468, startMid: 0.59 },
+                    "Luís Marques Mendes":    { myValue: 0.152, startMid: 0.095 },
+                    "Henrique Gouveia e Melo":{ myValue: 0.078, startMid: 0.011 }
+                }
+            },
+            {
+                slug: "portugal-presidential-election-1st-round-4th-place",
+                name: "1st Round 4th Place",
+                candidates: {
+                    "André Ventura":          { myValue: 0.078, startMid: 0.0155 },
+                    "António José Seguro":    { myValue: 0.038, startMid: 0.003 },
+                    "João Cotrim Figueiredo": { myValue: 0.124, startMid: 0.085 },
+                    "Luís Marques Mendes":    { myValue: 0.411, startMid: 0.52 },
+                    "Henrique Gouveia e Melo":{ myValue: 0.337, startMid: 0.39 }
+                }
+            }
+        ];
+
+        // Normalize candidate names for matching (remove party suffixes like "(CH)", "(IL)")
+        function normalizeName(name) {
+            return name.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+        }
+
+        // Find matching candidate config
+        function findCandidate(outcomeName, candidates) {
+            const normalizedOutcome = normalizeName(outcomeName);
+            for (const [name, config] of Object.entries(candidates)) {
+                if (normalizeName(name) === normalizedOutcome) {
+                    return { name, ...config };
+                }
+            }
+            // Fuzzy match - check if outcome contains candidate name
+            for (const [name, config] of Object.entries(candidates)) {
+                if (normalizedOutcome.includes(normalizeName(name)) ||
+                    normalizeName(name).includes(normalizedOutcome)) {
+                    return { name, ...config };
+                }
+            }
+            return null;
+        }
+
+        function formatPrice(value) {
+            if (value === null || value === undefined || isNaN(value)) {
+                return '<span class="price-na">-</span>';
+            }
+            return (value * 100).toFixed(1) + '%';
+        }
+
+        function getDiffClass(myValue, bid, ask) {
+            if (myValue === null || bid === null || ask === null) return '';
+            // Green if my value is above ask (underpriced - good to buy)
+            if (myValue > ask + 0.02) return 'diff-positive';
+            // Red if my value is below bid (overpriced - good to sell)
+            if (myValue < bid - 0.02) return 'diff-negative';
+            return '';
+        }
+
+        // CORS proxy to bypass browser restrictions
+        const CORS_PROXY = 'https://corsproxy.io/?';
+
+        async function fetchEventData(slug) {
+            const url = `${CORS_PROXY}${encodeURIComponent(`https://gamma-api.polymarket.com/events/slug/${slug}`)}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        }
+
+        function renderMarket(event, data) {
+            const markets = data.markets || [];
+            const rows = [];
+
+            for (const [candidateName, config] of Object.entries(event.candidates)) {
+                // Find matching market outcome
+                let marketData = null;
+                for (const market of markets) {
+                    const matched = findCandidate(market.groupItemTitle || market.question, { [candidateName]: config });
+                    if (matched) {
+                        marketData = market;
+                        break;
+                    }
+                }
+
+                let bid = null, ask = null;
+                if (marketData) {
+                    bid = parseFloat(marketData.bestBid) || null;
+                    ask = parseFloat(marketData.bestAsk) || null;
+                }
+
+                const diffClass = getDiffClass(config.myValue, bid, ask);
+
+                rows.push(`
+                    <tr>
+                        <td class="candidate-name" title="${candidateName}">${candidateName}</td>
+                        <td class="price">${formatPrice(config.startMid)}</td>
+                        <td class="price">${formatPrice(bid)}</td>
+                        <td class="price">${formatPrice(ask)}</td>
+                        <td class="price ${diffClass}">${formatPrice(config.myValue)}</td>
+                    </tr>
+                `);
+            }
+
+            const eventUrl = `https://polymarket.com/event/${event.slug}`;
+            return `
+                <div class="market-section">
+                    <div class="market-header">
+                        <a href="${eventUrl}" target="_blank" rel="noopener">${event.name}</a>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Candidate</th>
+                                    <th class="price">Start</th>
+                                    <th class="price">Bid</th>
+                                    <th class="price">Ask</th>
+                                    <th class="price">My</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows.join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function refreshData() {
+            const statusEl = document.getElementById('status');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const marketsEl = document.getElementById('markets');
+
+            statusEl.textContent = 'Loading...';
+            statusEl.className = 'status loading';
+            refreshBtn.disabled = true;
+
+            try {
+                const results = await Promise.all(
+                    EVENTS.map(event =>
+                        fetchEventData(event.slug)
+                            .then(data => ({ event, data, error: null }))
+                            .catch(error => ({ event, data: null, error }))
+                    )
+                );
+
+                let html = '';
+                let errorCount = 0;
+
+                for (const { event, data, error } of results) {
+                    if (error) {
+                        errorCount++;
+                        html += `
+                            <div class="market-section">
+                                <div class="market-header">${event.name}</div>
+                                <div style="padding: 1rem; color: var(--red);">
+                                    Failed to load: ${error.message}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        html += renderMarket(event, data);
+                    }
+                }
+
+                marketsEl.innerHTML = html;
+
+                const now = new Date().toLocaleTimeString();
+                if (errorCount > 0) {
+                    statusEl.textContent = `Updated ${now} (${errorCount} error${errorCount > 1 ? 's' : ''})`;
+                    statusEl.className = 'status error';
+                } else {
+                    statusEl.textContent = `Updated ${now}`;
+                    statusEl.className = 'status';
+                }
+            } catch (error) {
+                statusEl.textContent = `Error: ${error.message}`;
+                statusEl.className = 'status error';
+            } finally {
+                refreshBtn.disabled = false;
+            }
+        }
+
+        // Initial load
+        refreshData();
+
+        // Auto-refresh every 5 minutes
+        setInterval(refreshData, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
