@@ -89,6 +89,22 @@
             cursor: not-allowed;
         }
 
+        .refresh-btn.loading::after {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-left: 8px;
+            border: 2px solid transparent;
+            border-top-color: var(--text-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         .market-section {
             background: var(--card-bg);
             border-radius: 12px;
@@ -250,11 +266,11 @@
     <div class="legend">
         <div class="legend-item">
             <div class="legend-color green"></div>
-            <span>My Value &gt; Ask (buy opportunity)</span>
+            <span>&gt;5% higher</span>
         </div>
         <div class="legend-item">
             <div class="legend-color red"></div>
-            <span>My Value &lt; Bid (sell opportunity)</span>
+            <span>&gt;5% lower</span>
         </div>
     </div>
 
@@ -324,6 +340,15 @@
             return name.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
         }
 
+        // Display names (surnames)
+        const DISPLAY_NAMES = {
+            "André Ventura": "Ventura",
+            "António José Seguro": "Seguro",
+            "João Cotrim Figueiredo": "Cotrim F",
+            "Luís Marques Mendes": "Marques Mendes",
+            "Henrique Gouveia e Melo": "Gouveia Melo"
+        };
+
         // Find matching candidate config
         function findCandidate(outcomeName, candidates) {
             const normalizedOutcome = normalizeName(outcomeName);
@@ -349,12 +374,22 @@
             return (value * 100).toFixed(1) + '%';
         }
 
-        function getDiffClass(myValue, bid, ask) {
-            if (myValue === null || bid === null || ask === null) return '';
-            // Green if my value is above ask (underpriced - good to buy)
-            if (myValue > ask + 0.02) return 'diff-positive';
-            // Red if my value is below bid (overpriced - good to sell)
-            if (myValue < bid - 0.02) return 'diff-negative';
+        function getStartDiffClass(bid, ask, startMid) {
+            if (bid === null || ask === null || startMid === null) return '';
+            const currentMid = (bid + ask) / 2;
+            // Green if current is >5% above start (market moved up)
+            if (currentMid > startMid * 1.05) return 'diff-positive';
+            // Red if current is >5% below start (market moved down)
+            if (currentMid < startMid * 0.95) return 'diff-negative';
+            return '';
+        }
+
+        function getMyDiffClass(myValue, startMid) {
+            if (myValue === null || startMid === null) return '';
+            // Green if my value is >5% above start
+            if (myValue > startMid * 1.05) return 'diff-positive';
+            // Red if my value is >5% below start
+            if (myValue < startMid * 0.95) return 'diff-negative';
             return '';
         }
 
@@ -389,15 +424,16 @@
                     ask = parseFloat(marketData.bestAsk) || null;
                 }
 
-                const diffClass = getDiffClass(config.myValue, bid, ask);
+                const startDiffClass = getStartDiffClass(bid, ask, config.startMid);
+                const myDiffClass = getMyDiffClass(config.myValue, config.startMid);
 
                 rows.push(`
                     <tr>
-                        <td class="candidate-name" title="${candidateName}">${candidateName}</td>
-                        <td class="price">${formatPrice(config.startMid)}</td>
+                        <td class="candidate-name" title="${candidateName}">${DISPLAY_NAMES[candidateName] || candidateName}</td>
+                        <td class="price ${startDiffClass}">${formatPrice(config.startMid)}</td>
                         <td class="price">${formatPrice(bid)}</td>
                         <td class="price">${formatPrice(ask)}</td>
-                        <td class="price ${diffClass}">${formatPrice(config.myValue)}</td>
+                        <td class="price ${myDiffClass}">${formatPrice(config.myValue)}</td>
                     </tr>
                 `);
             }
@@ -436,6 +472,7 @@
             statusEl.textContent = 'Loading...';
             statusEl.className = 'status loading';
             refreshBtn.disabled = true;
+            refreshBtn.classList.add('loading');
 
             try {
                 const results = await Promise.all(
@@ -480,6 +517,7 @@
                 statusEl.className = 'status error';
             } finally {
                 refreshBtn.disabled = false;
+                refreshBtn.classList.remove('loading');
             }
         }
 
