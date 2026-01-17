@@ -337,15 +337,18 @@
 
         function getStartDiffClass(bid, ask, startMid, myValue) {
             if (bid === null || ask === null || startMid === null || myValue === null) return '';
+            // Only show color if start is 10% lower than bid or 10% higher than ask
+            if (startMid >= bid * 0.9 && startMid <= ask * 1.1) return '';
+
             const currentMid = (bid + ask) / 2;
             // Red if current is between start and my value
             // Green if current is on the opposite side of start from my value
             if (myValue > startMid) {
                 if (currentMid < startMid) return 'diff-positive';  // opposite side
-                if (currentMid > startMid && currentMid < myValue) return 'diff-negative';  // between
+                if (currentMid > startMid) return 'diff-negative';  // between (or beyond)
             } else if (myValue < startMid) {
                 if (currentMid > startMid) return 'diff-positive';  // opposite side
-                if (currentMid < startMid && currentMid > myValue) return 'diff-negative';  // between
+                if (currentMid < startMid) return 'diff-negative';  // between (or beyond)
             }
             return '';
         }
