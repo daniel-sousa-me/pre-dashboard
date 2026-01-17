@@ -224,34 +224,6 @@
             }
         }
 
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 3px;
-        }
-
-        .legend-color.green {
-            background: var(--green);
-        }
-
-        .legend-color.red {
-            background: var(--red);
-        }
     </style>
 </head>
 <body>
@@ -260,17 +232,6 @@
         <div class="controls">
             <span id="status" class="status">Loading...</span>
             <button id="refreshBtn" class="refresh-btn" onclick="refreshData()">Refresh</button>
-        </div>
-    </div>
-
-    <div class="legend">
-        <div class="legend-item">
-            <div class="legend-color green"></div>
-            <span>&gt;5% higher</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color red"></div>
-            <span>&gt;5% lower</span>
         </div>
     </div>
 
@@ -374,13 +335,18 @@
             return (value * 100).toFixed(1) + '%';
         }
 
-        function getStartDiffClass(bid, ask, startMid) {
-            if (bid === null || ask === null || startMid === null) return '';
+        function getStartDiffClass(bid, ask, startMid, myValue) {
+            if (bid === null || ask === null || startMid === null || myValue === null) return '';
             const currentMid = (bid + ask) / 2;
-            // Green if current is >5% above start (market moved up)
-            if (currentMid > startMid * 1.05) return 'diff-positive';
-            // Red if current is >5% below start (market moved down)
-            if (currentMid < startMid * 0.95) return 'diff-negative';
+            // Red if current is between start and my value
+            // Green if current is on the opposite side of start from my value
+            if (myValue > startMid) {
+                if (currentMid < startMid) return 'diff-positive';  // opposite side
+                if (currentMid > startMid && currentMid < myValue) return 'diff-negative';  // between
+            } else if (myValue < startMid) {
+                if (currentMid > startMid) return 'diff-positive';  // opposite side
+                if (currentMid < startMid && currentMid > myValue) return 'diff-negative';  // between
+            }
             return '';
         }
 
@@ -424,7 +390,7 @@
                     ask = parseFloat(marketData.bestAsk) || null;
                 }
 
-                const startDiffClass = getStartDiffClass(bid, ask, config.startMid);
+                const startDiffClass = getStartDiffClass(bid, ask, config.startMid, config.myValue);
                 const myDiffClass = getMyDiffClass(config.myValue, config.startMid);
 
                 rows.push(`
